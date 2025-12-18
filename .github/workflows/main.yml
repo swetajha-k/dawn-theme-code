@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main
+      - store-dev
+      - store-stage
+    paths-ignore:
+      - '**/*.json'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Run script
-        run: echo "GitHub Action is working 🚀"
+      - uses: actions/checkout@v4
+      - run: echo "Deploying theme (JSON changes ignored)"
