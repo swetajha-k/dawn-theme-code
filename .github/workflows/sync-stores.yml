@@ -33,24 +33,33 @@ jobs:
           # Merge store-dev into store-stage
           git merge origin/store-dev --no-commit --no-ff || true
 
-          # Reset all JSON files to store-stage's version (keep stage's JSON unchanged)
-          git checkout HEAD -- '*.json' || echo "No root JSON files"
-          git checkout HEAD -- '**/*.json' || echo "No nested JSON files"
+          # Revert all JSON files to store-stage's version (keep stage's JSON unchanged)
+          git checkout origin/store-stage -- '*.json' 2>/dev/null || echo "No root JSON files"
+          git checkout origin/store-stage -- '**/*.json' 2>/dev/null || echo "No nested JSON files"
+
+          # Remove any new JSON files that don't exist in store-stage
+          git diff --name-only --diff-filter=A | grep '\.json$' | while read file; do
+            git rm "$file" 2>/dev/null || true
+          done
+
+          # Stage all changes
+          git add -A
 
           # Complete the merge
-          git commit -m "Manual merge: store-dev to store-stage (code only, excluding JSON)" || echo "Nothing to commit"
+          if ! git diff --cached --quiet; then
+            git commit -m "Manual merge: store-dev to store-stage (code only, excluding JSON)"
+            git push origin store-stage
+          else
+            echo "ℹ️  No changes to commit after excluding JSON files"
+          fi
 
-          # Push to store-stage
-          git push origin store-stage
-
-  check-and-revert-json:
+  check-and-ignore-json:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR Branch
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -77,29 +86,67 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Reject PR with JSON Changes
-        if: steps.check_json.outputs.has_json_changes == 'true'
+      - name: Merge PR excluding JSON files
+        if: github.event.pull_request.base.ref == 'store-stage' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          # Fetch latest changes
+          git fetch origin
+
+          # Switch to store-stage branch
+          git checkout origin/store-stage
+
+          # Get the PR branch
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+
+          # Create a custom merge that excludes JSON files
+          # First, get all changed files except JSON
+          NON_JSON_FILES=$(git diff --name-only origin/store-stage...origin/${{ github.event.pull_request.head.ref }} | grep -v '\.json$' || true)
+
+          if [ -z "$NON_JSON_FILES" ]; then
+            echo "⚠️  No non-JSON files to merge"
+            exit 0
+          fi
+
+          # Perform the merge
+          git merge origin/${{ github.event.pull_request.head.ref }} --no-commit --no-ff || true
+
+          # Revert all JSON files back to store-stage version
+          git checkout origin/store-stage -- '*.json' 2>/dev/null || true
+          git checkout origin/store-stage -- '**/*.json' 2>/dev/null || true
+
+          # Remove any JSON files that don't exist in store-stage (new JSON files)
+          git diff --name-only --diff-filter=A origin/store-stage...HEAD | grep '\.json$' | while read file; do
+            git rm "$file" 2>/dev/null || true
+          done
+
+          # Stage the merge
+          git add -A
+
+          # Complete the merge
+          if ! git diff --cached --quiet; then
+            git commit -m "Merge PR #${{ github.event.pull_request.number }}: Code changes only (JSON files excluded)"
+            git push origin store-stage
+          else
+            echo "ℹ️  No changes to commit after excluding JSON files"
+          fi
+
+      - name: Add Info Comment to PR
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.pulls.createReview({
-              pull_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event: 'REQUEST_CHANGES',
-              body: '🔒 **JSON Files Cannot Be Merged**\n\n❌ This PR contains changes to JSON files. JSON files are protected and cannot be merged into `store-stage`:\n\n```\n${{ steps.check_json.outputs.json_files }}\n```\n\n**Why?** JSON files (Shopify config, theme settings, etc.) must remain separate between dev and stage environments.\n\n**What to do:**\n1. Remove JSON file changes from this PR\n2. If you need to update stage JSON files, do so directly in the `store-stage` branch\n3. Only code/non-JSON changes should be merged from `store-dev`\n\n*This is automatic protection to prevent Shopify config/template changes from affecting the stage store.*'
-            });
-
-            core.setFailed('PR contains JSON file changes and cannot be merged');
-
-      - name: Add Status Check Comment
-        if: steps.check_json.outputs.has_json_changes == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
+            let body = '✅ **Auto-Merge Status**\n\n';
+            
+            if ('${{ steps.check_json.outputs.has_json_changes }}' === 'true') {
+              body += '🔒 **JSON Files Excluded from Merge**\n\nThe following JSON files were NOT merged (kept in store-stage):\n\n```\n${{ steps.check_json.outputs.json_files }}\n```\n\n';
+            } else {
+              body += '✨ No JSON files in this PR.\n\n';
+            }
+            
+            body += '✔️ Only code/non-JSON changes have been merged into `store-stage`.\n\n*This is automatic protection to prevent Shopify config/template changes from affecting the stage store.*';
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ **JSON Files Check Passed**\n\nNo JSON files detected in this PR. Only code changes will be merged into `store-stage`.'
+              body: body
             })
