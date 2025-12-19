@@ -1,0 +1,26 @@
+name: Shopify CI
+
+on:
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.json'
+
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.json'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run CI tasks
+        run: |
+          echo "Running CI for non-JSON changes only"
