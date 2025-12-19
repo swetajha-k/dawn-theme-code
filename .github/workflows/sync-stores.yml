@@ -1,0 +1,35 @@
+name: Auto-Sync Dev to Stage
+on:
+  push:
+    branches:
+      - store-dev  # Runs whenever you push to dev
+
+jobs:
+  merge-to-stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history for merging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Git Identity
+        run: |
+          git config user.name "Store Sync Bot"
+          git config user.email "bot@yourstore.com"
+
+      - name: Merge Dev into Stage
+        run: |
+          # 1. Switch to Stage
+          git checkout store-stage
+          
+          # 2. Tell Git to keep 'ours' (Stage version) for JSON files during this merge
+          git config merge.ours.driver true
+          
+          # 3. Perform the merge
+          # The -X ours flag tells Git: "If there's a conflict, keep Stage's version"
+          git merge origin/store-dev -X ours -m "Automated Sync: Merging Dev into Stage"
+          
+          # 4. Push back to GitHub
+          git push origin store-stage
