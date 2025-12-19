@@ -51,86 +51,101 @@
         "image_behavior": "none",
         "desktop_content_position": "middle-center",
         "desktop_content_alignment": "center",
-        "show_text_box": true,
+        "show_text_box": false,
         "color_scheme": "",
         "stack_images_on_mobile": true,
         "mobile_content_alignment": "center",
         "show_text_below": true
       }
     },
-    "featured_product_7gRUzB": {
-      "type": "featured-product",
+    "collection_list_ht4xwF": {
+      "type": "collection-list",
       "blocks": {
-        "text_qNUiJw": {
-          "type": "text",
+        "featured_collection_rW6pJi": {
+          "type": "featured_collection",
           "settings": {
-            "text": "{{ section.settings.product.vendor }}",
-            "text_style": "uppercase"
+            "collection": ""
           }
         },
-        "title_zwwLgq": {
-          "type": "title",
+        "featured_collection_EKnpaE": {
+          "type": "featured_collection",
           "settings": {
-            "heading_size": "h1"
+            "collection": ""
           }
         },
-        "price_fgAUke": {
-          "type": "price",
-          "settings": {}
-        },
-        "variant_picker_Pmzrxq": {
-          "type": "variant_picker",
+        "featured_collection_8gqBzP": {
+          "type": "featured_collection",
           "settings": {
-            "picker_type": "button",
-            "swatch_shape": "circle"
-          }
-        },
-        "quantity_selector_UWiJPX": {
-          "type": "quantity_selector",
-          "settings": {}
-        },
-        "buy_buttons_TjJM9F": {
-          "type": "buy_buttons",
-          "settings": {
-            "show_dynamic_checkout": true,
-            "show_gift_card_recipient": true
-          }
-        },
-        "share_CyWBC6": {
-          "type": "share",
-          "settings": {
-            "share_label": "Share"
+            "collection": ""
           }
         }
       },
       "block_order": [
-        "text_qNUiJw",
-        "title_zwwLgq",
-        "price_fgAUke",
-        "variant_picker_Pmzrxq",
-        "quantity_selector_UWiJPX",
-        "buy_buttons_TjJM9F",
-        "share_CyWBC6"
+        "featured_collection_rW6pJi",
+        "featured_collection_EKnpaE",
+        "featured_collection_8gqBzP"
       ],
-      "name": "t:sections.featured-product.presets.name",
+      "name": "t:sections.collection-list.presets.name",
       "settings": {
-        "product": "",
+        "title": "Collections",
+        "heading_size": "h1",
+        "image_ratio": "square",
+        "columns_desktop": 3,
         "color_scheme": "",
-        "secondary_background": false,
-        "media_size": "medium",
-        "constrain_to_viewport": true,
-        "media_fit": "contain",
-        "media_position": "left",
-        "image_zoom": "lightbox",
-        "hide_variants": false,
-        "enable_video_looping": false,
+        "show_view_all": false,
+        "columns_mobile": "1",
+        "swipe_on_mobile": false,
         "padding_top": 36,
         "padding_bottom": 36
+      }
+    },
+    "rich_text_nmUAR3": {
+      "type": "rich-text",
+      "blocks": {
+        "heading_aRjk8j": {
+          "type": "heading",
+          "settings": {
+            "heading": "Talk about your brand",
+            "heading_size": "h1"
+          }
+        },
+        "text_69JqBf": {
+          "type": "text",
+          "settings": {
+            "text": "<p>Share information about your brand with your customers. Describe a product, make announcements, or welcome customers to your store.</p>"
+          }
+        },
+        "button_6WqHpU": {
+          "type": "button",
+          "settings": {
+            "button_label": "Button label",
+            "button_link": "",
+            "button_style_secondary": false,
+            "button_label_2": "",
+            "button_link_2": "",
+            "button_style_secondary_2": false
+          }
+        }
+      },
+      "block_order": [
+        "heading_aRjk8j",
+        "text_69JqBf",
+        "button_6WqHpU"
+      ],
+      "name": "t:sections.rich-text.presets.name",
+      "settings": {
+        "desktop_content_position": "center",
+        "content_alignment": "center",
+        "color_scheme": "",
+        "full_width": true,
+        "padding_top": 40,
+        "padding_bottom": 52
       }
     }
   },
   "order": [
+    "rich_text_nmUAR3",
     "image_banner_7Nz9VH",
-    "featured_product_7gRUzB"
+    "collection_list_ht4xwF"
   ]
 }
