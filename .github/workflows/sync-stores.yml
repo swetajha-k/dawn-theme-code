@@ -1,17 +1,17 @@
-name: Auto-Sync Dev to Stage
+name: Create PR from Dev to Stage
 on:
   push:
     branches:
       - store-dev  # Runs whenever you push to dev
 
 jobs:
-  merge-to-stage:
+  create-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches all history for merging
+          fetch-depth: 0 # Fetches all history
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set Git Identity
@@ -19,20 +19,42 @@ jobs:
           git config user.name "Store Sync Bot"
           git config user.email "bot@yourstore.com"
 
-      - name: Merge Dev into Stage (excluding JSON files)
+      - name: Create Sync Branch (excluding JSON files)
         run: |
-          # 1. Switch to Stage
-          git checkout store-stage
+          # Fetch all branches
+          git fetch origin
 
-          # 2. Merge Dev into Stage
-          git merge origin/store-dev --no-commit --no-ff || true
+          # Create a unique branch name for the sync
+          SYNC_BRANCH="sync-dev-to-stage-$(date +%Y%m%d-%H%M%S)"
 
-          # 3. Reset all JSON files to Stage's version (keep Stage's JSON unchanged)
-          git checkout HEAD -- '*.json'
-          git checkout HEAD -- '**/*.json'
+          # Start from store-dev
+          git checkout store-dev
 
-          # 4. Complete the merge
-          git commit -m "Automated Sync: Merging Dev into Stage (excluding JSON files)" || echo "Nothing to commit"
+          # Create new sync branch
+          git checkout -b $SYNC_BRANCH
 
-          # 5. Push back to GitHub
-          git push origin store-stage
+          # Reset JSON files to match store-stage version (exclude JSON from sync)
+          git fetch origin store-stage:store-stage
+          git checkout store-stage -- '*.json' '**/*.json' || echo "No JSON files to reset"
+
+          # Commit the changes if there are any
+          if git diff --cached --quiet; then
+            echo "No changes to commit (excluding JSON)"
+            echo "SKIP_PR=true" >> $GITHUB_ENV
+          else
+            git commit -m "Sync from store-dev to store-stage (excluding JSON files)" || echo "Nothing to commit"
+            git push origin $SYNC_BRANCH
+            echo "SYNC_BRANCH=$SYNC_BRANCH" >> $GITHUB_ENV
+            echo "SKIP_PR=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Pull Request
+        if: env.SKIP_PR != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base store-stage \
+            --head ${{ env.SYNC_BRANCH }} \
+            --title "Sync from Dev to Stage (code only, no JSON)" \
+            --body "This PR syncs code changes from \`store-dev\` to \`store-stage\`.<br><br>**Note:** JSON files are excluded from this sync and will not be merged."
