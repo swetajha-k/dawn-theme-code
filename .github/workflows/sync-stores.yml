@@ -1,8 +1,6 @@
-name: Auto-Sync Dev to Stage
+name: Manual Sync Dev to Stage (Exclude JSON)
 on:
-  push:
-    branches:
-      - store-dev  # Runs whenever you push to dev
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   merge-to-stage:
@@ -19,17 +17,23 @@ jobs:
           git config user.name "Store Sync Bot"
           git config user.email "bot@yourstore.com"
 
-      - name: Merge Dev into Stage
+      - name: Merge Dev into Stage (excluding JSON files)
         run: |
-          # 1. Switch to Stage
+          # Fetch latest changes
+          git fetch origin
+
+          # Switch to store-stage branch
           git checkout store-stage
-          
-          # 2. Tell Git to keep 'ours' (Stage version) for JSON files during this merge
-          git config merge.ours.driver true
-          
-          # 3. Perform the merge
-          # The -X ours flag tells Git: "If there's a conflict, keep Stage's version"
-          git merge origin/store-dev -X ours -m "Automated Sync: Merging Dev into Stage"
-          
-          # 4. Push back to GitHub
+
+          # Merge store-dev into store-stage
+          git merge origin/store-dev --no-commit --no-ff || true
+
+          # Reset all JSON files to store-stage's version (keep stage's JSON unchanged)
+          git checkout HEAD -- '*.json' || echo "No root JSON files"
+          git checkout HEAD -- '**/*.json' || echo "No nested JSON files"
+
+          # Complete the merge
+          git commit -m "Manual merge: store-dev to store-stage (code only, excluding JSON)" || echo "Nothing to commit"
+
+          # Push to store-stage
           git push origin store-stage
