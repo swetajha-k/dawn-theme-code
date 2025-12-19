@@ -20,6 +20,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify PR is from store-dev
+        run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+          
+          if [ "$BASE_BRANCH" != "store-stage" ] || [ "$HEAD_BRANCH" != "store-dev" ]; then
+            echo "⏭️  This workflow only processes PRs from store-dev to store-stage"
+            exit 0
+          fi
+
       - name: Set Git Identity
         run: |
           git config user.name "Store Sync Bot"
