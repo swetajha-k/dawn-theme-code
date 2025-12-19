@@ -100,12 +100,13 @@ jobs:
           fi
 
           echo "Committing changes..."
-          git commit -m "🤖 Auto-revert JSON files to store-stage version
+          COMMIT_MSG="Auto-revert JSON files to store-stage version
 
 JSON files are automatically excluded from store-stage merges to prevent Shopify config conflicts.
 
 Reverted/removed files:
 $JSON_FILES"
+          git commit -m "$COMMIT_MSG"
 
           echo "Pushing to branch: ${{ github.event.pull_request.head.ref }}"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
