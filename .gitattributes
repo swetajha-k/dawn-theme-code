@@ -1,3 +1,5 @@
-config/settings_data.json merge=ours
-templates/*.json merge=ours
+# Keep store-stage's JSON files during merges (don't merge JSON from other branches)
+config/*.json merge=ours
+templates/**/*.json merge=ours
 sections/*.json merge=ours
+locales/*.json merge=ours
