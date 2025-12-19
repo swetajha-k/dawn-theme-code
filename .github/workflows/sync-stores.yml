@@ -1,108 +1,143 @@
-name: Ignore JSON files in haymes-test folder
- 
+name: Sync Dev to Stage with JSON Protection
+
 on:
-
   pull_request:
-
+    types: [opened, synchronize, reopened]
     branches:
+      - store-stage
 
-      - store-dev
-
-    paths:
-
-      - '**'
- 
 jobs:
-
-  check-files:
-
+  exclude-json-from-pr:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-
-      - name: Checkout code
-
+      - name: Checkout PR Branch
         uses: actions/checkout@v4
-
         with:
-
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
- 
-      - name: Get changed files
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
-        id: changed-files
-
-        uses: tj-actions/changed-files@v41
-
-        with:
-
-          files_ignore: |
-
-            haymes-test/**/*.json
- 
-      - name: Check for relevant changes
-
-        id: check-changes
-
+      - name: Verify PR is from store-dev
         run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+          PR_STATE="${{ github.event.pull_request.state }}"
 
-          if [ "${{ steps.changed-files.outputs.any_changed }}" == "false" ]; then
+          echo "PR State: $PR_STATE"
+          echo "Base: $BASE_BRANCH → Head: $HEAD_BRANCH"
 
-            echo "Only JSON files in haymes-test folder were modified. No relevant changes to review."
-
-            echo "skip_review=true" >> $GITHUB_OUTPUT
-
-          else
-
-            echo "Found changes outside haymes-test JSON files. PR should be reviewed."
-
-            echo "skip_review=false" >> $GITHUB_OUTPUT
-
+          if [ "$PR_STATE" != "open" ]; then
+            echo "⏭️  PR is not open, skipping"
+            exit 0
           fi
- 
+
+          if [ "$BASE_BRANCH" != "store-stage" ] || [ "$HEAD_BRANCH" != "store-dev" ]; then
+            echo "⏭️  This workflow only processes PRs from store-dev to store-stage"
+            exit 0
+          fi
+
+          echo "✅ PR verified: store-dev → store-stage"
+
+      - name: Set Git Identity
+        run: |
+          git config user.name "Store Sync Bot"
+          git config user.email "bot@yourstore.com"
+
+      - name: Check and Revert JSON Files
+        id: revert_json
+        run: |
+          set -e  # Exit on error
+
+          echo "Current branch: $(git branch --show-current)"
+          echo "Current commit: $(git rev-parse HEAD)"
+
+          # Fetch the base branch (store-stage)
+          git fetch origin store-stage
+          echo "Fetched store-stage: $(git rev-parse origin/store-stage)"
+
+          # Find all JSON files that differ from store-stage
+          JSON_FILES=$(git diff --name-only origin/store-stage...HEAD | grep '\.json$' || true)
+
+          if [ -z "$JSON_FILES" ]; then
+            echo "✅ No JSON files changed in this PR"
+            echo "has_json_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found JSON file changes that will be reverted:"
+          echo "$JSON_FILES"
+
+          # Store the list for later use
+          JSON_LIST=""
+
+          # Revert all JSON files to store-stage version
+          while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              JSON_LIST="${JSON_LIST}${file}\n"
+              if git show origin/store-stage:"$file" > /dev/null 2>&1; then
+                echo "Reverting $file to store-stage version"
+                git checkout origin/store-stage -- "$file"
+              else
+                echo "Removing new JSON file: $file (doesn't exist in store-stage)"
+                git rm -f "$file" || true
+              fi
+            fi
+          done <<< "$JSON_FILES"
+
+          # Stage all changes
+          git add -A
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "✅ JSON files already match store-stage"
+            echo "has_json_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Committing changes..."
+          git commit -m "🤖 Auto-revert JSON files to store-stage version
+
+JSON files are automatically excluded from store-stage merges to prevent Shopify config conflicts.
+
+Reverted/removed files:
+$JSON_FILES"
+
+          echo "Pushing to branch: ${{ github.event.pull_request.head.ref }}"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+          echo "has_json_changes=true" >> $GITHUB_OUTPUT
+          echo "json_files<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$JSON_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "✅ Successfully reverted JSON files"
+
       - name: Comment on PR
-
-        if: steps.check-changes.outputs.skip_review == 'true'
-
+        if: steps.revert_json.outputs.has_json_changes == 'true'
         uses: actions/github-script@v7
-
         with:
-
           script: |
+            const jsonFiles = `${{ steps.revert_json.outputs.json_files }}`;
+            const body = `🔒 **JSON Files Auto-Excluded**
+
+The following JSON files have been automatically reverted to match \`store-stage\`:
+
+\`\`\`
+${jsonFiles}
+\`\`\`
+
+**Why?** JSON files contain Shopify store configurations that should not be synced between environments. Only code changes (Liquid templates, CSS, JS) are merged to \`store-stage\`.
+
+✅ Your PR now contains only non-JSON changes and is ready for review.`;
 
             github.rest.issues.createComment({
-
               issue_number: context.issue.number,
-
               owner: context.repo.owner,
-
               repo: context.repo.repo,
-
-              body: '⚠️ This PR only contains changes to JSON files in the `haymes-test` folder, which are ignored per repository policy. No review required for these changes.'
-
+              body: body
             })
- 
-      - name: Auto-approve if only ignored files
-
-        if: steps.check-changes.outputs.skip_review == 'true'
-
-        uses: actions/github-script@v7
-
-        with:
-
-          script: |
-
-            github.rest.pulls.createReview({
-
-              owner: context.repo.owner,
-
-              repo: context.repo.repo,
-
-              pull_number: context.issue.number,
-
-              event: 'APPROVE',
-
-              body: 'Auto-approved: Only ignored JSON files in haymes-test folder were modified.'
-
-            })
- 
