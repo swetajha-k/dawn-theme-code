@@ -1,17 +1,26 @@
-name: Shopify Theme Sync
-
+name: Block Shopify JSON Files
+ 
 on:
+  pull_request:
   push:
-    branches:
-      - main
-      - store-dev
-      - store-stage
-    paths-ignore:
-      - '**/*.json'
-
+ 
 jobs:
-  deploy:
+  block-json:
     runs-on: ubuntu-latest
+ 
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Deploying theme (JSON changes ignored)"
+ 
+      - name: Detect forbidden JSON files
+        run: |
+          forbidden_files=(
+            "config/settings_data.json"
+            "templates/.*\.json"
+          )
+ 
+          for pattern in "${forbidden_files[@]}"; do
+            if git diff --name-only HEAD~1 | grep -E "$pattern"; then
+              echo "❌ Forbidden Shopify JSON file detected: $pattern"
+              exit 1
+            fi
+          done
