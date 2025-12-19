@@ -1,65 +1,22 @@
 name: Sync Dev to Stage with JSON Protection
 
 on:
-  workflow_dispatch:  # Manual trigger for sync
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
-      - store-stage  # Automatic protection on PRs
+      - store-stage
 
 jobs:
-  merge-to-stage:
-    if: github.event_name == 'workflow_dispatch'
+  exclude-json-from-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - name: Checkout Code
+      - name: Checkout PR Branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches all history for merging
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set Git Identity
-        run: |
-          git config user.name "Store Sync Bot"
-          git config user.email "bot@yourstore.com"
-
-      - name: Merge Dev into Stage (excluding JSON files)
-        run: |
-          # Fetch latest changes
-          git fetch origin
-
-          # Switch to store-stage branch
-          git checkout store-stage
-
-          # Merge store-dev into store-stage
-          git merge origin/store-dev --no-commit --no-ff || true
-
-          # Revert all JSON files to store-stage's version (keep stage's JSON unchanged)
-          git checkout origin/store-stage -- '*.json' 2>/dev/null || echo "No root JSON files"
-          git checkout origin/store-stage -- '**/*.json' 2>/dev/null || echo "No nested JSON files"
-
-          # Remove any new JSON files that don't exist in store-stage
-          git diff --name-only --diff-filter=A | grep '\.json$' | while read file; do
-            git rm "$file" 2>/dev/null || true
-          done
-
-          # Stage all changes
-          git add -A
-
-          # Complete the merge
-          if ! git diff --cached --quiet; then
-            git commit -m "Manual merge: store-dev to store-stage (code only, excluding JSON)"
-            git push origin store-stage
-          else
-            echo "ℹ️  No changes to commit after excluding JSON files"
-          fi
-
-  check-and-ignore-json:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,82 +25,73 @@ jobs:
           git config user.name "Store Sync Bot"
           git config user.email "bot@yourstore.com"
 
-      - name: Check for JSON Changes
-        id: check_json
+      - name: Check and Revert JSON Files
+        id: revert_json
         run: |
-          # Get list of changed JSON files in this PR
+          # Fetch the base branch (store-stage)
+          git fetch origin store-stage
+
+          # Find all JSON files that differ from store-stage
           JSON_FILES=$(git diff --name-only origin/store-stage...HEAD | grep '\.json$' || true)
 
           if [ -z "$JSON_FILES" ]; then
-            echo "No JSON files changed in this PR ✓"
+            echo "✅ No JSON files changed in this PR"
             echo "has_json_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "Found JSON file changes:"
-            echo "$JSON_FILES"
+            exit 0
+          fi
+
+          echo "Found JSON file changes that will be reverted:"
+          echo "$JSON_FILES"
+          echo "$JSON_FILES" > /tmp/json_files.txt
+
+          # Revert all JSON files to store-stage version
+          echo "$JSON_FILES" | while IFS= read -r file; do
+            if git show origin/store-stage:"$file" > /dev/null 2>&1; then
+              echo "Reverting $file to store-stage version"
+              git checkout origin/store-stage -- "$file"
+            else
+              echo "Removing new JSON file: $file"
+              git rm "$file"
+            fi
+          done
+
+          # Check if there are changes to commit
+          if ! git diff --cached --quiet || ! git diff --quiet; then
+            git add -A
+            git commit -m "🤖 Auto-revert JSON files to store-stage version
+
+JSON files are automatically excluded from store-stage merges to prevent Shopify config conflicts.
+
+Reverted/removed files:
+$JSON_FILES"
+            git push origin ${{ github.event.pull_request.head.ref }}
             echo "has_json_changes=true" >> $GITHUB_OUTPUT
             echo "json_files<<EOF" >> $GITHUB_OUTPUT
             echo "$JSON_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Merge PR excluding JSON files
-        if: github.event.pull_request.base.ref == 'store-stage' && github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          # Fetch latest changes
-          git fetch origin
-
-          # Switch to store-stage branch
-          git checkout origin/store-stage
-
-          # Get the PR branch
-          git fetch origin ${{ github.event.pull_request.head.ref }}
-
-          # Create a custom merge that excludes JSON files
-          # First, get all changed files except JSON
-          NON_JSON_FILES=$(git diff --name-only origin/store-stage...origin/${{ github.event.pull_request.head.ref }} | grep -v '\.json$' || true)
-
-          if [ -z "$NON_JSON_FILES" ]; then
-            echo "⚠️  No non-JSON files to merge"
-            exit 0
-          fi
-
-          # Perform the merge
-          git merge origin/${{ github.event.pull_request.head.ref }} --no-commit --no-ff || true
-
-          # Revert all JSON files back to store-stage version
-          git checkout origin/store-stage -- '*.json' 2>/dev/null || true
-          git checkout origin/store-stage -- '**/*.json' 2>/dev/null || true
-
-          # Remove any JSON files that don't exist in store-stage (new JSON files)
-          git diff --name-only --diff-filter=A origin/store-stage...HEAD | grep '\.json$' | while read file; do
-            git rm "$file" 2>/dev/null || true
-          done
-
-          # Stage the merge
-          git add -A
-
-          # Complete the merge
-          if ! git diff --cached --quiet; then
-            git commit -m "Merge PR #${{ github.event.pull_request.number }}: Code changes only (JSON files excluded)"
-            git push origin store-stage
           else
-            echo "ℹ️  No changes to commit after excluding JSON files"
+            echo "✅ JSON files already match store-stage"
+            echo "has_json_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Add Info Comment to PR
+      - name: Comment on PR
+        if: steps.revert_json.outputs.has_json_changes == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            let body = '✅ **Auto-Merge Status**\n\n';
-            
-            if ('${{ steps.check_json.outputs.has_json_changes }}' === 'true') {
-              body += '🔒 **JSON Files Excluded from Merge**\n\nThe following JSON files were NOT merged (kept in store-stage):\n\n```\n${{ steps.check_json.outputs.json_files }}\n```\n\n';
-            } else {
-              body += '✨ No JSON files in this PR.\n\n';
-            }
-            
-            body += '✔️ Only code/non-JSON changes have been merged into `store-stage`.\n\n*This is automatic protection to prevent Shopify config/template changes from affecting the stage store.*';
-            
+            const jsonFiles = `${{ steps.revert_json.outputs.json_files }}`;
+            const body = `🔒 **JSON Files Auto-Excluded**
+
+The following JSON files have been automatically reverted to match \`store-stage\`:
+
+\`\`\`
+${jsonFiles}
+\`\`\`
+
+**Why?** JSON files contain Shopify store configurations that should not be synced between environments. Only code changes (Liquid templates, CSS, JS) are merged to \`store-stage\`.
+
+✅ Your PR now contains only non-JSON changes and is ready for review.`;
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
