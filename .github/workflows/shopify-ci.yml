@@ -1,26 +1,31 @@
-name: Shopify CI
+name: Block JSON Changes
 
 on:
   pull_request:
     branches:
       - '**'
-    paths-ignore:
-      - '**/*.json'
-
-  push:
-    branches:
-      - '**'
-    paths-ignore:
-      - '**/*.json'
 
 jobs:
-  build:
+  block-json:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Run CI tasks
+      - name: Detect JSON file changes
         run: |
-          echo "Running CI for non-JSON changes only"
+          echo "Checking for JSON file changes..."
+
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          echo "$FILES"
+
+          if echo "$FILES" | grep -E '\.json$'; then
+            echo "ERROR: JSON file changes detected. PR is blocked."
+            exit 1
+          fi
+
+          echo "No JSON file changes detected."
