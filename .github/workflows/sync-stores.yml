@@ -1,50 +1,57 @@
-name: Ignore JSON files in PR
-
+name: Sync StoreA to StoreB (Exclude JSON)
+ 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
 
+  push:
+
+    paths:
+
+      - 'store-dev/**'
+ 
 jobs:
-  ignore-json:
+
+  sync-store:
+
     runs-on: ubuntu-latest
-
+ 
     steps:
-      - name: Checkout PR branch
+
+      - name: Checkout repository
+
         uses: actions/checkout@v4
+
         with:
+
           fetch-depth: 0
+ 
+      - name: Sync Store-dev to Store-stage (exclude JSON files)
 
-      - name: Fetch base branch
         run: |
-          git fetch origin ${{ github.base_ref }}
 
-      - name: Restore JSON files from base branch
+          rsync -av --delete \
+
+            --exclude='*.json' \
+
+            stored-dev/ stored-stage/
+ 
+      - name: Check for changes
+
         run: |
-          echo "Checking for JSON file changes..."
 
-          # Get list of changed JSON files in PR
-          JSON_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.json$' || true)
+          git status
+ 
+      - name: Commit and push changes
 
-          if [ -z "$JSON_FILES" ]; then
-            echo "No JSON files changed."
-            exit 0
-          fi
+        run: |
 
-          echo "JSON files found:"
-          echo "$JSON_FILES"
+          git config user.name "github-actions"
 
-          # Restore each JSON file from base branch
-          for file in $JSON_FILES; do
-            echo "Restoring $file from base branch"
-            git checkout origin/${{ github.base_ref }} -- "$file"
-          done
+          git config user.email "github-actions@github.com"
+ 
+          git add storeB
 
-          # Commit only if there are changes
-          if git status --porcelain | grep .; then
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-            git commit -am "chore: ignore Shopify JSON changes"
-            git push
-          else
-            echo "Nothing to commit."
-          fi
+          git diff --cached --quiet || git commit -m "Sync Store-dev to Store-stage (excluding JSON)"
+
+          git push
+
+ 
