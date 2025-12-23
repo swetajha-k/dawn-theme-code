@@ -1,57 +1,37 @@
-name: Sync StoreA to StoreB (Exclude JSON)
+name: Sync store-dev → store-stage (Exclude JSON)
  
 on:
-
   push:
-
-    paths:
-
-      - 'store-dev/**'
+    branches:
+      - store-dev
  
 jobs:
-
-  sync-store:
-
+  sync-branches:
     runs-on: ubuntu-latest
  
     steps:
-
       - name: Checkout repository
-
         uses: actions/checkout@v4
-
         with:
-
           fetch-depth: 0
  
-      - name: Sync Store-dev to Store-stage (exclude JSON files)
-
+      - name: Configure Git
         run: |
-
-          rsync -av --delete \
-
-            --exclude='*.json' \
-
-            stored-dev/ stored-stage/
+          git config user.name "sweta.jha"
+          git config user.email "sweta.jha@krishtechnolabs.com"
  
-      - name: Check for changes
-
+      - name: Checkout store-stage branch
         run: |
-
-          git status
+          git checkout store-stage
+ 
+      - name: Sync files from store-dev to store-stage (exclude JSON)
+        run: |
+          git checkout store-dev -- .
+          find config -name "*.json" -exec git checkout store-stage -- {} \;
  
       - name: Commit and push changes
-
         run: |
-
-          git config user.name "github-actions"
-
-          git config user.email "github-actions@github.com"
- 
-          git add storeB
-
-          git diff --cached --quiet || git commit -m "Sync Store-dev to Store-stage (excluding JSON)"
-
-          git push
-
- 
+          git status
+          git add .
+          git diff --cached --quiet || git commit -m "Sync from store-dev to store-stage (excluding JSON)"
+          git push origin store-stage
