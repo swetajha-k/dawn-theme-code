@@ -1,0 +1,37 @@
+name: Sync store-dev → store-stage (Exclude JSON)
+ 
+on:
+  push:
+    branches:
+      - store-dev
+ 
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+ 
+      - name: Configure Git
+        run: |
+          git config user.name "sweta.jha"
+          git config user.email "sweta.jha@krishtechnolabs.com"
+ 
+      - name: Checkout store-stage branch
+        run: |
+          git checkout store-stage
+ 
+      - name: Sync files from store-dev to store-stage (exclude JSON)
+        run: |
+          git checkout store-dev -- .
+          find config -name "*.json" -exec git checkout store-stage -- {} \;
+ 
+      - name: Commit and push changes
+        run: |
+          git status
+          git add .
+          git diff --cached --quiet || git commit -m "Sync from store-dev to store-stage (excluding JSON)"
+          git push origin store-stage
