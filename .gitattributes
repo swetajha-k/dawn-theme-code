@@ -3,3 +3,4 @@ config/*.json merge=ours
 templates/**/*.json merge=ours
 sections/*.json merge=ours
 locales/*.json merge=ours
+*.json merge=ours
