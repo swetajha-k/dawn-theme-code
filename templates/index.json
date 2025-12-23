@@ -9,74 +9,52 @@
  */
 {
   "sections": {
-    "featured_product_PpQNy4": {
-      "type": "featured-product",
+    "image_banner_zbnrrp": {
+      "type": "image-banner",
       "blocks": {
-        "text_ixDAqV": {
-          "type": "text",
+        "heading_LJarrx": {
+          "type": "heading",
           "settings": {
-            "text": "{{ section.settings.product.vendor }}",
-            "text_style": "uppercase"
-          }
-        },
-        "title_DFX9dw": {
-          "type": "title",
-          "settings": {
+            "heading": "Image banner",
             "heading_size": "h1"
           }
         },
-        "price_Hw4byL": {
-          "type": "price",
-          "settings": {}
-        },
-        "variant_picker_Gifmfz": {
-          "type": "variant_picker",
+        "text_XmyURR": {
+          "type": "text",
           "settings": {
-            "picker_type": "button",
-            "swatch_shape": "circle"
+            "text": "Give customers details about the banner image(s) or content on the template.",
+            "text_style": "body"
           }
         },
-        "quantity_selector_8Pwz4c": {
-          "type": "quantity_selector",
-          "settings": {}
-        },
-        "buy_buttons_tTgLak": {
-          "type": "buy_buttons",
+        "buttons_jc8DgQ": {
+          "type": "buttons",
           "settings": {
-            "show_dynamic_checkout": true,
-            "show_gift_card_recipient": true
-          }
-        },
-        "share_AdDnrr": {
-          "type": "share",
-          "settings": {
-            "share_label": "Share"
+            "button_label_1": "Button label",
+            "button_link_1": "",
+            "button_style_secondary_1": false,
+            "button_label_2": "Button label",
+            "button_link_2": "",
+            "button_style_secondary_2": false
           }
         }
       },
       "block_order": [
-        "text_ixDAqV",
-        "title_DFX9dw",
-        "price_Hw4byL",
-        "variant_picker_Gifmfz",
-        "quantity_selector_8Pwz4c",
-        "buy_buttons_tTgLak",
-        "share_AdDnrr"
+        "heading_LJarrx",
+        "text_XmyURR",
+        "buttons_jc8DgQ"
       ],
-      "name": "t:sections.featured-product.presets.name",
+      "name": "t:sections.image-banner.presets.name",
       "settings": {
-        "product": "",
+        "image_overlay_opacity": 0,
+        "image_height": "medium",
+        "image_behavior": "none",
+        "desktop_content_position": "middle-center",
+        "desktop_content_alignment": "center",
+        "show_text_box": true,
         "color_scheme": "",
-        "secondary_background": false,
-        "media_size": "medium",
-        "constrain_to_viewport": true,
-        "media_fit": "contain",
-        "media_position": "left",
-        "image_zoom": "lightbox",
-        "hide_variants": false,
-        "enable_video_looping": false,
-        "padding_top": 36,
-        "padding_bottom": 36
+        "stack_images_on_mobile": true,
+        "mobile_content_alignment": "center",
+        "show_text_below": true
       }
     },
     "image_banner_7Nz9VH": {
@@ -127,58 +105,9 @@
         "mobile_content_alignment": "center",
         "show_text_below": true
       }
-    },
-    "image_banner_zbnrrp": {
-      "type": "image-banner",
-      "blocks": {
-        "heading_LJarrx": {
-          "type": "heading",
-          "settings": {
-            "heading": "Image banner",
-            "heading_size": "h1"
-          }
-        },
-        "text_XmyURR": {
-          "type": "text",
-          "settings": {
-            "text": "Give customers details about the banner image(s) or content on the template.",
-            "text_style": "body"
-          }
-        },
-        "buttons_jc8DgQ": {
-          "type": "buttons",
-          "settings": {
-            "button_label_1": "Button label",
-            "button_link_1": "",
-            "button_style_secondary_1": false,
-            "button_label_2": "Button label",
-            "button_link_2": "",
-            "button_style_secondary_2": false
-          }
-        }
-      },
-      "block_order": [
-        "heading_LJarrx",
-        "text_XmyURR",
-        "buttons_jc8DgQ"
-      ],
-      "name": "t:sections.image-banner.presets.name",
-      "settings": {
-        "image_overlay_opacity": 0,
-        "image_height": "medium",
-        "image_behavior": "none",
-        "desktop_content_position": "middle-center",
-        "desktop_content_alignment": "center",
-        "show_text_box": true,
-        "color_scheme": "",
-        "stack_images_on_mobile": true,
-        "mobile_content_alignment": "center",
-        "show_text_below": true
-      }
     }
   },
   "order": [
-    "featured_product_PpQNy4",
     "image_banner_zbnrrp",
     "image_banner_7Nz9VH"
   ]
