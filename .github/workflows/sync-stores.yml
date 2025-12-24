@@ -1,37 +1,51 @@
 name: Sync store-dev → store-stage (Exclude JSON)
- 
+
 on:
   push:
     branches:
       - store-dev
- 
+
 jobs:
   sync-branches:
     runs-on: ubuntu-latest
- 
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
- 
+
       - name: Configure Git
         run: |
           git config user.name "sweta.jha"
           git config user.email "sweta.jha@krishtechnolabs.com"
- 
+          # Configure the "ours" merge driver to keep store-stage's JSON files
+          git config merge.ours.driver true
+          git config merge.ours.name "Keep our version during merge"
+
       - name: Checkout store-stage branch
         run: |
           git checkout store-stage
- 
-      - name: Sync files from store-dev to store-stage (exclude JSON)
+
+      - name: Merge store-dev into store-stage (preserving stage JSON files)
         run: |
-          git checkout store-dev -- .
-          find config -name "*.json" -exec git checkout store-stage -- {} \;
- 
-      - name: Commit and push changes
+          # Merge store-dev into store-stage
+          # The .gitattributes file ensures JSON files keep store-stage's version
+          git merge origin/store-dev --no-edit -m "Sync from store-dev to store-stage (preserving stage JSON files)" || {
+            # If there are conflicts, check if they're only in JSON files
+            echo "Merge conflicts detected. Checking if they're in JSON files..."
+
+            # Accept ours (store-stage) for all JSON files
+            git checkout --ours '*.json' 'config/*.json' 'templates/**/*.json' 'sections/*.json' 'locales/*.json' 2>/dev/null || true
+            git add '*.json' 'config/*.json' 'templates/**/*.json' 'sections/*.json' 'locales/*.json' 2>/dev/null || true
+
+            # Continue the merge
+            git -c core.editor=true merge --continue || {
+              echo "Manual intervention required"
+              exit 1
+            }
+          }
+
+      - name: Push changes to store-stage
         run: |
-          git status
-          git add .
-          git diff --cached --quiet || git commit -m "Sync from store-dev to store-stage (excluding JSON)"
           git push origin store-stage
