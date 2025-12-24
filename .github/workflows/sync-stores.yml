@@ -17,7 +17,7 @@ jobs:
  
       - name: Configure Git
         run: |
-          git config user.name "sweta"
+          git config user.name "sweta.jha"
           git config user.email "sweta@gmail.com"
  
       - name: Checkout store-stage branch
@@ -32,6 +32,11 @@ jobs:
           # Sync files but EXCLUDE JSON
           rsync -av --delete \
             --exclude='config/*.json' \
+            --exclude='locales/*.json' \
+            --exclude='sections/*.json' \
+            --exclude='templates/*.json' \
+            --exclude='templates/customers/*.json' \
+            --exclude='.github/workflows/*' \
             --exclude='.git' \
             /tmp/store-dev/ ./
  
